@@ -830,7 +830,7 @@ def model_anticipation_federate_q(models, model_names):
             current_model.set_weights(new_weights)
 
 def model_anticipation_federate(models, model_names):
-    """Perform Model Anticipation Federated Learning."""
+    """Perform Model Anticipation Federated Learning with huber."""
     plane_dict = {}
     attacked_nodes_indices = byzantine_attack(models, byzantine_node_ratio)
     # Group models by orbital plane
