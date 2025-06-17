@@ -29,6 +29,8 @@ from matplotlib.patches import FancyArrowPatch
 from matplotlib.colors import Normalize
 import matplotlib.cm as cm
 
+from SAC.sac import SAC
+
 
 ###############################################################################
 ################################    Log file    ###############################
@@ -83,8 +85,8 @@ from collections import deque
 ###############################################################################
 
 # HOT PARAMS - This parameters should be revised before every simulation
-pathings    = ['hop', 'dataRate', 'dataRateOG', 'slant_range', 'Q-Learning', 'Deep Q-Learning']
-pathing     = pathings[5]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
+pathings    = ['hop', 'dataRate', 'dataRateOG', 'slant_range', 'Q-Learning', 'Deep Q-Learning', 'Soft Actor Critic']
+pathing     = pathings[6]# dataRateOG is the original datarate. If we want to maximize the datarate we have to use dataRate, which is the inverse of the datarate
 
 FL_Test     = False     # If True, it plots the model divergence the model divergence between agents
 plotSatID   = True      # If True, plots the ID of each satellite
@@ -98,7 +100,7 @@ ndeltas     = 5805.44/20#1 Movement speedup factor. Every movementTime sats will
 Train       = True      # Global for all scenarios with different number of GTs. if set to false, the model will not train any of them
 explore     = True      # If True, makes random actions eventually, if false only exploitation
 importQVals = False     # imports either QTables or NN from a certain path
-onlinePhase = True     # when set to true, each satellite becomes a different agent. Recommended using this with importQVals=True and explore=False
+onlinePhase = False     # when set to true, each satellite becomes a different agent. Recommended using this with importQVals=True and explore=False
 if onlinePhase:         # Just in case
     explore     = False
     importQVals = True
@@ -111,7 +113,7 @@ w4          = 5         # Normalization for the distance reward, for the travele
 
 gamma       = 0.99       # greedy factor. Smaller -> Greedy. Optimized params: 0.6 for Q-Learning, 0.99 for Deep Q-Learning
 
-GTs = [4]               # number of gateways to be tested
+GTs = [3]               # number of gateways to be tested
 # Gateways are taken from https://www.ksat.no/ground-network-services/the-ksat-global-ground-station-network/ (Except for Malaga and Aalborg)
 # GTs = [i for i in range(2,9)] # This is to make a sweep where scenarios with all the gateways in the range are considered
 
@@ -213,7 +215,7 @@ batchSize   = 16        # batchSize samples are taken from bufferSize samples to
 bufferSize  = 50        # bufferSize samples are used to train the network
 
 # Stop Loss
-# Train       = True      # Global for all scenarios with different number of GTs. if set to false, the model will not train any of them
+Train       = True      # Global for all scenarios with different number of GTs. if set to false, the model will not train any of them
 stopLoss    = False     # activates the stop loss function
 nLosses     = 50        # Nº of loss samples used for the stop loss
 lThreshold  = 0.5       # If the mean of the last nLosses are lower than lossThreshold, the mdoel stops training
@@ -229,12 +231,12 @@ CurrentGTnumber = -1    # Number of active gateways. This number will be updated
 
 # nnpath      = './pre_trained_NNs/qNetwork_8GTs_6secs_nocon.h5'
 # nnpathTarget= './pre_trained_NNs/qTarget_8GTs_6secs_nocon.h5'
-# nnpath      = './pre_trained_NNs/qNetwork_3GTs.h5'
-# nnpathTarget= './pre_trained_NNs/qTarget_3GTs.h5'
+nnpath      = './pre_trained_NNs/qNetwork_3GTs.h5'
+nnpathTarget= './pre_trained_NNs/qTarget_3GTs.h5'
 # nnpath      = './pre_trained_NNs/qNetwork_2GTs.h5'
 # nnpathTarget= './pre_trained_NNs/qTarget_2GTs.h5'
-nnpath      = './pre_trained_NNs/qNetwork_2GTs_lastHop.h5'
-nnpathTarget= './pre_trained_NNs/qTarget_2GTs_lastHop.h5'
+# nnpath      = './pre_trained_NNs/qNetwork_2GTs_lastHop.h5'
+# nnpathTarget= './pre_trained_NNs/qTarget_2GTs_lastHop.h5'
 tablesPath  = './pre_trained_NNs/qTablesExport_8GTs/'
 
 if __name__ == '__main__':
@@ -4010,6 +4012,11 @@ class DDQNAgent:
 
             In DDQN the qNetwork is updated with the learning process defined by the loss and optimizer, but the qTarget network used for evaluation and stability purpose is
             a frozen version of qNetwork, which is updated periodically and not during the learning process.
+                        
+            编译方法用于配置qNetwork的学习过程，它设置了模型在训练期间用于学习的优化器和损失函数。
+            这仅在q网络中完成，因为在DDQN算法中，我们使用来自环境的数据训练qNetwork，并定期更新qTarget。
+
+            在DDQN中，qNetwork通过由损失和优化器定义的学习过程进行更新，但用于评估和稳定性目的的qTarget网络是qNetwork的一个冻结版本，它会定期更新，而不是在学习过程中更新。
             '''
             # The first model makes the predictions for Q-values which are used to make a action
             self.qNetwork = self.createModel()
@@ -4091,44 +4098,17 @@ class DDQNAgent:
                     destination = linkedSats[action]
                     return [destination.ID, math.degrees(destination.longitude), math.degrees(destination.latitude)], actIndex
                 
-                # # Mapping from state indices to direction decisions
-                # decision_map = {
-                #     (4, 5): 0,    # Up
-                #     (10, 11): 1,  # Down
-                #     (16, 17): 2,  # Right
-                #     (22, 23): 3   # Left
-                # }
-                #     # Current satellite's destination position
-                # dest_lat = newState[0, 26]
-                # dest_lon = newState[0, 27]
-
-                # # Iterate through the decision map and compare
-                # for (lat_idx, lon_idx), actIndex in decision_map.items():
-                #     if np.isclose(dest_lat, newState[0, lat_idx]) and np.isclose(dest_lon, newState[0, lon_idx]):
-                #         action      = self.actions[actIndex]
-                #         destination = linkedSats[action]
-                #         return [destination.ID, math.degrees(destination.longitude), math.degrees(destination.latitude)], actIndex
-
             # Predict 
             qValues = self.qNetwork(newState).numpy()               # NOTE NN. Gets next hop. state structure in debugging
             actIndex = np.argmax(qValues)
             action   = self.actions[actIndex]
-            while(linkedSats[action] == None):              # the chosen action has no linked satellite. NEGATIVE REWARD and store it, motherfucker.
-            
-            # while (linkedSats[action] is None or        # the chosen action has no linked satellite or the chosen satellite has been visited twice.
-            # sum(linkedSats[action].ID == path[0] for path in block.QPath[:-1]) > 1):    
+            while(linkedSats[action] == None):              # the chosen action has no linked satellite. NEGATIVE REWARD and store it 
 
                 self.experienceReplay.store(newState, actIndex, unavPenalty, newState, False) # from state to the same state, reward -1, not terminated
                 self.earth.rewards.append([unavPenalty, sat.env.now])
                 qValues[0][actIndex] = -np.inf              # it will not be chosen again (as the model has still not trained with that)
             
-            #     if np.all(qValues == -np.inf):              # all the neighbors have been visited twice
-            #         print(f'WARNING: All neighbors have been visited at least twice. A loop is going on in {sat.ID} with block: {block.ID}')
-            #         while (linkedSats[action] is None): # if all options were either not available or visited twice, then choose randomly an action that is available
-            #             np.random.randint(4)
-            #             actIndex = np.argmax(qValues)               # find again for the highest value
-            #             action   = self.actions[actIndex]  
-            #         break
+
                 actIndex = np.argmax(qValues)               # find again for the highest value
                 action   = self.actions[actIndex]  
 
@@ -4281,7 +4261,7 @@ class DDQNAgent:
         global      CurrentGTnumber
         epsilon     = self.minEps + (self.maxEps - self.minEps) * math.exp(-LAMBDA * step/(decayRate*(CurrentGTnumber**2)))
         self        .epsilon.append([epsilon, sat.env.now])
-        return epsilon
+        return epsilonww w
 
     def alignQTarget(self, hardUpdate = True): # Soft one is done every step
         '''
@@ -4363,6 +4343,174 @@ class DDQNAgent:
         earth.trains.append([sat.env.now]) # counts the number of trainings
         
 
+# @profile
+class SACConfig_:
+    """ 算法超参数 """
+
+    def __init__(self) -> None:
+        # 准备工作
+        self.algo_name = "SAC"
+        # self.env_name = env_name
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 选择设备
+        # 训练设置
+        self.train_eps = 1000
+        self.test_eps = 0
+        self.max_steps = 1000  # 每回合的最大步数
+        # 网络参数
+        self.hidden_dim = 256
+        self.value_lr = 3e-4
+        self.soft_q_lr = 3e-4
+        self.policy_lr = 3e-4
+        self.mean_lambda = 1e-4
+        self.std_lambda = 1e-2
+        self.z_lambda = 0.0
+        self.soft_tau = 1e-2  # 目标网络软更新参数
+        # 折扣因子
+        self.gamma = 0.99
+        # 经验池
+        self.capacity = 1000000
+        self.batch_size = 128
+
+
+# @profile
+class SACAgent:
+    def __init__(self) -> None:
+        self.actions        = ['U', 'D', 'R', 'L']
+        if not reducedState:
+            self.states         = ['UpLinked Up', 'UpLinked Down','UpLinked Right','UpLinked Left',                        # Up Link
+                            'Up Latitude', 'Up Longitude',                                                             # Up positions
+                            'DownLinked Up', 'DownLinked Down','DownLinked Right','DownLinked Left',                   # Down Link
+                            'Down Latitude', 'Down Longitude',                                                         # Down positions
+                            'RightLinked Up', 'RightLinked Down','RightLinked Right','RightLinked Left',               # Right Link
+                            'Right Latitude', 'Right Longitude',                                                       # Right positions
+                            'LeftLinked Up', 'LeftLinked Down','LeftLinked Right','LeftLinked Left',                   # Left Link
+                            'Left Latitude', 'Left Longitude',                                                         # Left positions
+
+                            'Actual latitude', 'Actual longitude',                                                     # Actual Position
+                            'Destination latitude', 'Destination longitude']                                           # Destination Position
+        elif reducedState:
+            self.states         = ['Up Latitude', 'Up Longitude',               # Up Link
+                            'Down Latitude', 'Down Longitude',                  # Down Link
+                            'Right Latitude', 'Right Longitude',                # Right Link
+                            'Left Latitude', 'Left Longitude',                  # Left Link
+                            'Actual latitude', 'Actual longitude',              # Current pos
+                            'Destination latitude', 'Destination longitude']    # Destination pos
+        
+
+        self.n_actions = len(self.actions)
+        self.n_states  = len(self.states)
+        self.cfg       = SACConfig_()
+
+        self.sac = SAC(self.n_states, self.n_actions, self.cfg)
+
+    def getNextHop(self, newState, linkedSats, sat, block):
+        '''
+        Given a new observed state and the linkied satellites, it will return the next hop
+        '''
+        # randomly (Exploration)
+        if explore and random.uniform(0, 1)<self.alignEpsilon(self.step, sat):
+            actIndex = random.randrange(self.actionSize)
+            action   = self.actions[actIndex]
+            while(linkedSats[action] == None):   # if that direction has no linked satellite
+                self.experienceReplay.store(newState, actIndex, unavPenalty, newState, False) # stores experience, repeats randomly
+                self.earth.rewards.append([unavPenalty, sat.env.now])
+                action = self.actions[random.randrange(len(self.actions))]
+
+        # highest value (Exploitation) using SAC
+        else:
+            if noPingPong: # No PING PONG: if one of the neighbours is the connected satellite then choose that one
+                actIndex = -1
+                if sat.upper == block.destination.linkedSat[1]:
+                    actIndex = 0
+                elif sat.lower == block.destination.linkedSat[1]:
+                    actIndex = 1
+                elif sat.right == block.destination.linkedSat[1]:
+                    actIndex = 2
+                elif sat.left == block.destination.linkedSat[1]:
+                    actIndex = 3
+
+                if actIndex>-1:
+                    action      = self.actions[actIndex]
+                    destination = linkedSats[action]
+                    return [destination.ID, math.degrees(destination.longitude), math.degrees(destination.latitude)], actIndex
+
+            # SAC Predict
+            sac_action = self.sac.policy_net.get_action(newState)  # 使用SAC策略网络获取动作
+            actIndex = np.argmax(sac_action)  # 从SAC输出中获取最大概率动作索引
+            action   = self.actions[actIndex]
+            while(linkedSats[action] == None):              # 处理动作不可用情况
+                self.experienceReplay.store(newState, actIndex, unavPenalty, newState, False)
+                self.earth.rewards.append([unavPenalty, sat.env.now])
+                sac_action[actIndex] = -np.inf  # 标记不可用动作
+                actIndex = np.argmax(sac_action)
+                action   = self.actions[actIndex]
+
+        destination = linkedSats[action]
+        try:
+            return [destination.ID, math.degrees(destination.longitude), math.degrees(destination.latitude)], actIndex
+        except:
+            return -1
+
+    def makeDeepActionSAC(self, block, sat, g, earth, prevSat=None):
+        '''
+        SAC版本的深度动作决策方法，核心差异：
+        - 使用SAC策略网络采样动作（随机策略）
+        - 经验存储到SAC的ReplayBuffer
+        - 训练调用SAC的update方法
+        '''
+        # 1. 环境观测与状态构建（与DDQN共用状态获取逻辑）
+        linkedSats  = getDeepLinkedSats(sat, g, earth)
+        if reducedState:
+            newState    = getDeepStateReduced(block, sat, linkedSats)
+        elif diff and not diff_lastHop:
+            newState    = getDeepStateDiff(block, sat, linkedSats)
+        elif diff_lastHop:
+            newState    = getDeepStateDiffLastHop(block, sat, linkedSats)
+        else:
+            newState    = getDeepState(block, sat, linkedSats)
+
+        if newState is None:
+            earth.lostBlocks += 1
+            return 0
+        self.step   += 1
+
+        # 2. 目标网关到达检查（与DDQN逻辑一致）
+        if sat.linkedGT and (block.destination.ID == sat.linkedGT.ID):
+            # 到达目标时的奖励处理（示例使用SAC兼容的奖励格式）
+            reward = ArriveReward
+            self.sac.memory.push(block.oldState, block.oldAction, reward, newState, True)
+            self.earth.rewards.append([reward, sat.env.now])
+            if TrainThis:
+                self.sac.update()  # 调用SAC的更新方法
+            return 0
+
+        # 3. 动作选择（SAC策略网络采样）
+        state_tensor = torch.FloatTensor(newState).to(self.sac.device)
+        action = self.sac.policy_net.get_action(state_tensor)  # SAC策略网络直接采样动作
+        actIndex = np.argmax(action)  # 假设动作空间为离散方向，取概率最大的索引
+        nextHop = self.actions[actIndex]  # 假设self.actions定义了动作到方向的映射
+
+        # 4. 奖励计算（与DDQN共用奖励函数，适配SAC的连续/离散动作）
+        if prevSat is not None:
+            # 距离奖励、队列奖励等计算（与DDQN逻辑一致）
+            distanceReward = getDistanceRewardV5(prevSat, sat, self.w2)
+            queueReward = getQueueReward(block.queueTime[-1], self.w1)
+            reward = distanceReward + queueReward
+
+            # 5. 经验存储到SAC的ReplayBuffer
+            self.sac.memory.push(block.oldState, actIndex, reward, newState, False)
+            self.earth.rewards.append([reward, sat.env.now])
+
+            # 6. 调用SAC的网络更新（按频率训练）
+            if TrainThis and self.step % nTrain == 0:
+                self.sac.update()  # SAC的核心更新逻辑
+
+        # 7. 状态与动作记忆更新（与DDQN一致）
+        block.oldState = newState
+        block.oldAction = actIndex
+        return nextHop
+
+    
 # @profile
 class ExperienceReplay:
     def __init__(self, maxlen = 100):
@@ -4542,6 +4690,9 @@ def initialize(env, popMapLocation, GTLocation, distance, inputParams, movementT
                 for sat in plane.sats:
                     sat.DDQNA = DDQNAgent(len(earth.gateways), hyperparams, earth, sat.ID)
             print('----------------------------------')
+    if pathing == 'Soft Actor Critic':
+        if not onlinePhase:
+            earth.DDQNA = SACAgent(len(earth.gateways), hyperparams, earth)
 
     # save hyperparams
     if pathing == 'Q-Learning' or pathing == "Deep Q-Learning":

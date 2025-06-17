@@ -1,0 +1,80 @@
+Nº of Gateways: 31
+Routing metric: Deep Q-Learning
+----------------------------------
+Time:
+14:22:39
+Locations:
+0         Malaga
+1    Los Angeles
+2      Mauritius
+Name: Locations, dtype: object
+Movement Time: 10
+Rotation Factor: 290.272
+Minimum epsilon: 0.001
+Reward for deliver: 50
+Stop Loss: False, number of samples considered: 50, threshold: 0.5
+----------------------------------
+Fraction of traffic generated: 0.5, test type: Latency
+Using Kepler constellation design
+total divisions in x = 1440
+ total divisions in y = 720
+ total cells = 1036800
+ window of operation (longitudes) = (0, 1440)
+ window of operation (latitudes) = (0, 720)
+
+Finding cells within coverage area of GT 1 of 3Finding cells within coverage area of GT 2 of 3Finding cells within coverage area of GT 3 of 3
+Time taken to find cells that are within range of all GTs: 0.6668519973754883 seconds
+Time taken to add cell information to all GTs: 0.05802106857299805 seconds
+
+Matching: Greedy
+Removing duplicated links...
+Establishing remaining edges...
+Biggest slant range between satellites: 3708.31 km
+----------------------------------
+Traffic generated per GT (totalAvgFlow per Milliard):
+----------------------------------
+Malaga, Spain: 1.051607
+Los Angeles, California, US: 0.92582375
+Mauritius: 0.905134
+----------------------------------
+State Space:
+ ['Last Hop', 'UpLinked Up', 'UpLinked Down', 'UpLinked Right', 'UpLinked Left', 'Up Latitude', 'Up Longitude', 'DownLinked Up', 'DownLinked Down', 'DownLinked Right', 'DownLinked Left', 'Down Latitude', 'Down Longitude', 'RightLinked Up', 'RightLinked Down', 'RightLinked Right', 'RightLinked Left', 'Right Latitude', 'Right Longitude', 'LeftLinked Up', 'LeftLinked Down', 'LeftLinked Right', 'LeftLinked Left', 'Left Latitude', 'Left Longitude', 'Actual latitude', 'Actual longitude', 'Destination latitude', 'Destination longitude']
+State size: 29 states
+Action Space:
+ ('U', 'D', 'R', 'L')
+----------------------------------
+Q-NETWORK created:
+----------------------------------
+Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ dense (Dense)               (None, 32)                960       
+                                                                 
+ dense_1 (Dense)             (None, 32)                1056      
+                                                                 
+ dense_2 (Dense)             (None, 4)                 132       
+                                                                 
+=================================================================
+Total params: 2148 (8.39 KB)
+Trainable params: 2148 (8.39 KB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+----------------------------------
+DDQN enabled, TARGET NETWORK created:
+----------------------------------
+Model: "sequential_1"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ dense_3 (Dense)             (None, 32)                960       
+                                                                 
+ dense_4 (Dense)             (None, 32)                1056      
+                                                                 
+ dense_5 (Dense)             (None, 4)                 132       
+                                                                 
+=================================================================
+Total params: 2148 (8.39 KB)
+Trainable params: 2148 (8.39 KB)
+Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
