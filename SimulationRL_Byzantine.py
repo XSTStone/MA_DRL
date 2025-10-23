@@ -14,7 +14,7 @@ import os
 import folium
 from IPython.display import display
 from typing import List, Tuple
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import seaborn as sns
 import gc
 import cProfile
@@ -254,7 +254,12 @@ mode = 'Byzantine_clipNorm_combination'
 
 if __name__ == '__main__':
     # nnpath          = f'./pre_trained_NNs/qNetwork_8GTs.h5'
-    outputPath      = './Results/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs_{}/'.format(pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs, mode)
+    # 获取当前时间并格式化为英文月份缩写-日-小时分钟
+    # 明确使用北京时间（东八区）
+    beijing_tz = timezone(timedelta(hours=8))
+    current_time = datetime.now(beijing_tz)
+    time_stamp = current_time.strftime("%b-%d-%H%M")
+    outputPath      = '/home/local/Stone/results/MA-DRL/{}/{}_{}s_[{}]_Del_[{}]_w1_[{}]_w2_{}_GTs_{}/'.format(time_stamp, pathing, float(pd.read_csv("inputRL.csv")['Test length'][0]), ArriveReward, w1, w2, GTs, mode)
     populationMap   = 'Population Map/gpw_v4_population_count_rev11_2020_15_min.tif'
 
 ###############################################################################
